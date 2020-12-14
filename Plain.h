@@ -12,6 +12,7 @@
 #include "Shader.h"
 
 #include <iostream>
+#include <glm/gtc/noise.hpp>
 using namespace std;
 
 const char* vertexShaderSource =

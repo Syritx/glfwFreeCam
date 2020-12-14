@@ -9,14 +9,22 @@
 #include "Plain.h"
 
 #include <iostream>
+
 using namespace std;
 
 void keyboard(GLFWwindow* window, Plain plain);
+void cursorPosition(GLFWwindow* window, double xpos, double ypos);
+void mouseButton(GLFWwindow* window, int b, int a, int m);
+float clamp(float v, float min, float max);
 
 vec3 position = vec3(0,0,0),
      eye = vec3(0,0,-1),
      up = vec3(0,1,0);
-float xrot, yrot;
+
+vec2 lastMousePosition = vec2(0,0);
+
+float xrot, yrot, CAMERA_SPEED = .5f;
+bool isMouseDown = false;
 
 int main(int argc, const char * argv[]) {
     
@@ -37,12 +45,15 @@ int main(int argc, const char * argv[]) {
     glewExperimental = GL_TRUE;
     glewInit();
     
+    glfwSetCursorPosCallback(window, cursorPosition);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glfwSetMouseButtonCallback(window, mouseButton);
+    
     Plain plain = Plain();
         
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
         glClearColor(0,0,0,1);
-        
         keyboard(window, plain);
         
         glfwPollEvents();
@@ -53,6 +64,41 @@ int main(int argc, const char * argv[]) {
 }
 
 
+// MOUSE
+
+void cursorPosition(GLFWwindow* window, double xpos, double ypos) {
+    if (isMouseDown) {
+        
+        double xdist = lastMousePosition.x - xpos;
+        double ydist = lastMousePosition.y - ypos;
+        
+        xrot += ydist * .5f;
+        yrot -= xdist * .5f;
+        
+        xrot = clamp(xrot, -89.9f, 89.9f);
+        
+        eye.x = cos(radians(xrot)) * cos(radians(yrot));
+        eye.y = sin(radians(xrot));
+        eye.z = cos(radians(xrot)) * sin(radians(yrot));
+        
+        eye = normalize(eye);
+    }
+    lastMousePosition = vec2(xpos, ypos);
+}
+
+void mouseButton(GLFWwindow* window, int b, int a, int m) {
+    if (b == GLFW_MOUSE_BUTTON_RIGHT && a == GLFW_PRESS) {
+        isMouseDown = true;
+    }
+    
+    if (b == GLFW_MOUSE_BUTTON_RIGHT && a == GLFW_RELEASE) {
+        isMouseDown = false;
+    }
+}
+
+
+// CAMERA
+
 float clamp(float v, float min, float max) {
     if (v > max) return max;
     if (v < min) return min;
@@ -60,29 +106,17 @@ float clamp(float v, float min, float max) {
     return v;
 }
 
-void rotate(float direction) {
-    yrot += direction*2;
-    xrot = clamp(xrot, -89.9f, 89.9f);
-    cout << direction << "\n";
-    
-    eye.x = cos(radians(xrot)) * cos(radians(yrot));
-    eye.y = sin(radians(xrot));
-    eye.z = cos(radians(xrot)) * sin(radians(yrot));
-    
-    eye = normalize(eye);
-}
-
 void keyboard(GLFWwindow* window, Plain plain) {
     
     float xDir = 0;
     // vertical
-         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) position += eye * .1f;
-    else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) position -= eye * .1f;
+         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) position += eye * CAMERA_SPEED;
+    else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) position -= eye * CAMERA_SPEED;
     
     // horizontal
-         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) xDir = -1.f;
-    else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) xDir =  1.f;
-    rotate(xDir);
+    vec3 right = normalize(cross(eye, up));
+         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) position -= right * CAMERA_SPEED;
+    else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) position += right * CAMERA_SPEED;
     
     plain.render(position, eye, up);
 }
